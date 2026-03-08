@@ -198,3 +198,5 @@ Jenkins is used as a secondary validation layer: it pulls the repo from GitHub a
 | GET | `/api/workouts/<client_name>` | List workouts for client |
 
 Program names are returned by `/api/programs`. SQLite DB `aceest_fitness.db` is created by the Flask app. The GUI uses these endpoints only; no local DB.
+
+Developed By - Amit Kumar Rout(2024TM93566)
