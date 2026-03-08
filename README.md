@@ -6,8 +6,8 @@ Flask backend API plus Tkinter desktop frontend for fitness and gym management. 
 
 ## Architecture
 
-- **Backend (Flask)** – `app.py` exposes REST endpoints for programs and **SQLite-backed** clients/progress: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), `/api/progress` (POST). DB: `aceest_fitness.db` (clients + progress tables). Runs in Docker and in CI.
-- **Frontend (Tkinter)** – `gui.py` (Aceestver-4) is a desktop client: Client Management (name, age, weight, program, adherence), Save Client / Load Client / Save Progress via the Flask API only (no local SQLite). Client Summary panel. Run locally when you have a display.
+- **Backend (Flask)** – `app.py` exposes REST endpoints for programs and **SQLite-backed** clients/progress: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), `/api/progress` (POST), `/api/progress/<client_name>` (GET). DB: `aceest_fitness.db` (clients + progress tables). Runs in Docker and in CI.
+- **Frontend (Tkinter)** – `gui.py` (Aceestver-2.2.1) is a desktop client: Client Management (name, age, weight, program, adherence), Save Client / Load Client / Save Progress / **View Progress Chart** via the Flask API only (no local SQLite). Chart uses matplotlib to plot weekly adherence. Client Summary panel. Run locally when you have a display.
 
 ---
 

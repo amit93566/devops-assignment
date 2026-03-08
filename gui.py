@@ -1,7 +1,7 @@
 """
 ACEest Fitness & Performance - Tkinter frontend.
 Client Management via Flask API (clients and progress in backend SQLite).
-Matches Aceestver-4 style: setup_data (program factors from API), Save/Load Client, Save Progress.
+Aceestver-2.2.1: setup_data (program factors from API), Save/Load Client, Save Progress, View Progress Chart (matplotlib).
 Start Flask first (python app.py).
 """
 
@@ -14,6 +14,14 @@ try:
     import requests
 except ImportError:
     requests = None
+
+try:
+    import matplotlib
+    matplotlib.use("TkAgg")
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
 
 API_BASE = "http://localhost:5000"
 
@@ -95,6 +103,7 @@ class ACEestApp:
         ttk.Button(left, text="Save Client", command=self.save_client).pack(pady=10)
         ttk.Button(left, text="Load Client", command=self.load_client).pack(pady=5)
         ttk.Button(left, text="Save Progress", command=self.save_progress).pack(pady=5)
+        ttk.Button(left, text="View Progress Chart", command=self.show_progress_chart).pack(pady=10)
 
         # RIGHT PANEL
         right = tk.LabelFrame(
@@ -201,6 +210,34 @@ Calories : {calories} kcal/day
             messagebox.showinfo("Progress Saved", "Weekly progress logged")
         else:
             messagebox.showerror("Error", "Could not save progress. Is Flask running?")
+
+    def show_progress_chart(self):
+        """Fetch progress for current client from API and show matplotlib line chart (Aceestver-2.2.1)."""
+        if not self.name.get():
+            messagebox.showwarning("No Client", "Enter client name first")
+            return
+        if not HAS_MATPLOTLIB:
+            messagebox.showerror("Error", "Install matplotlib to view the progress chart")
+            return
+        data = self._api_get(f"/api/progress/{quote(self.name.get())}")
+        if data is None:
+            messagebox.showerror("Error", "Could not load progress. Is Flask running?")
+            return
+        if not data:
+            messagebox.showinfo("No Data", "No progress data available for this client")
+            return
+        weeks = [d["week"] for d in data]
+        adherence = [d["adherence"] for d in data]
+        plt.figure(figsize=(8, 4))
+        plt.plot(weeks, adherence, marker="o", linewidth=2)
+        plt.title(f"Weekly Adherence Progress – {self.name.get()}")
+        plt.xlabel("Week")
+        plt.ylabel("Adherence (%)")
+        plt.ylim(0, 100)
+        plt.grid(True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
 
 
 if __name__ == "__main__":

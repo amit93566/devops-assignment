@@ -71,6 +71,7 @@ def index():
                 "clients": "/api/clients",
                 "client_by_name": "/api/clients/<name>",
                 "progress": "/api/progress",
+                "progress_by_client": "/api/progress/<name>",
             },
             "health": "/health",
         }
@@ -170,6 +171,20 @@ def save_progress():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "saved", "client_name": client_name, "week": week, "adherence": adherence}), 201
+
+
+@app.route("/api/progress/<path:client_name>", methods=["GET"])
+def get_progress(client_name):
+    """Return progress entries for a client (week, adherence) ordered by id."""
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT week, adherence FROM progress WHERE client_name = ? ORDER BY id",
+        (client_name,),
+    )
+    rows = cur.fetchall()
+    data = [{"week": r["week"], "adherence": r["adherence"]} for r in rows]
+    return jsonify(data)
 
 
 if __name__ == "__main__":

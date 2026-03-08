@@ -184,3 +184,35 @@ def test_api_progress_post_requires_client_name(client):
     """POST /api/progress without client_name returns 400."""
     r = client.post("/api/progress", json={"week": "Week 1", "adherence": 50}, content_type="application/json")
     assert r.status_code == 400
+
+
+def test_api_progress_get_by_client_empty(client):
+    """GET /api/progress/<client_name> returns empty list when no progress."""
+    r = client.get("/api/progress/SomeClient")
+    assert r.status_code == 200
+    assert r.get_json() == []
+
+
+def test_api_progress_get_by_client(client):
+    """GET /api/progress/<client_name> returns list of week, adherence."""
+    client.post(
+        "/api/clients",
+        json={"name": "ChartUser", "program": "Beginner (BG)", "age": 25, "weight": 70, "calories": 1820},
+        content_type="application/json",
+    )
+    client.post(
+        "/api/progress",
+        json={"client_name": "ChartUser", "week": "Week 01 - 2025", "adherence": 80},
+        content_type="application/json",
+    )
+    client.post(
+        "/api/progress",
+        json={"client_name": "ChartUser", "week": "Week 02 - 2025", "adherence": 90},
+        content_type="application/json",
+    )
+    r = client.get("/api/progress/ChartUser")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data) == 2
+    assert data[0]["week"] == "Week 01 - 2025" and data[0]["adherence"] == 80
+    assert data[1]["week"] == "Week 02 - 2025" and data[1]["adherence"] == 90
