@@ -1,6 +1,6 @@
 """
-ACEest Fitness & Performance - Tkinter frontend (Aceestver-3.1.2).
-Login, Client Management, Membership Expiry, AI Program Generator, PDF Export via Flask API.
+ACEest Fitness & Performance - Tkinter frontend (Aceestver-3.2.4).
+Login on root, Dashboard with Client Summary + adherence chart, Workouts tab, Check Membership, PDF via Flask API.
 Start Flask first (python app.py).
 """
 
@@ -40,65 +40,39 @@ class ACEestApp:
         self.root.geometry("1400x900")
         self.root.configure(bg="#1a1a1a")
 
-        self.current_client = None
         self.current_user = None
-        self.user_role = None
+        self.current_role = None
+        self.current_client = None
 
-        self.setup_data()
-        self.show_login_window()
-
-    # ---------- DATA (program factors from API or fallback) ----------
-    def setup_data(self):
-        """Load program list and factors from Flask API or use fallback."""
-        self.programs = {
-            "Fat Loss (FL) – 3 day": {"factor": 22, "desc": "3-day full-body fat loss"},
-            "Fat Loss (FL) – 5 day": {"factor": 24, "desc": "5-day split, higher volume fat loss"},
-            "Muscle Gain (MG) – PPL": {"factor": 35, "desc": "Push/Pull/Legs hypertrophy"},
-            "Beginner (BG)": {"factor": 26, "desc": "3-day simple beginner full-body"},
+        self.program_templates = {
+            "Fat Loss": ["Full Body HIIT", "Circuit Training", "Cardio + Weights"],
+            "Muscle Gain": ["Push/Pull/Legs", "Upper/Lower Split", "Full Body Strength"],
+            "Beginner": ["Full Body 3x/week", "Light Strength + Mobility"],
         }
-        if requests:
-            try:
-                r = requests.get(f"{API_BASE}/api/programs", timeout=5)
-                r.raise_for_status()
-                names = r.json()
-                for name in names:
-                    r2 = requests.get(f"{API_BASE}/api/program/{quote(name)}", timeout=5)
-                    if r2.status_code == 200:
-                        data = r2.json()
-                        self.programs[name] = {
-                            "factor": data.get("calorie_factor", 0),
-                            "desc": data.get("desc", ""),
-                        }
-            except Exception:
-                pass
+
+        self.login_screen()
+
+    # ---------- UTILITY ----------
+    def clear_root(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
 
     # ---------- LOGIN ----------
-    def show_login_window(self):
-        self.root.withdraw()
-        self.login_win = tk.Toplevel(self.root)
-        self.login_win.title("Login")
-        self.login_win.geometry("300x200")
-        self.login_win.configure(bg="#1a1a1a")
-        self.login_win.protocol("WM_DELETE_WINDOW", self.on_login_close)
+    def login_screen(self):
+        self.clear_root()
+        frame = tk.Frame(self.root, bg="#1a1a1a")
+        frame.pack(expand=True)
 
-        tk.Label(self.login_win, text="Username", bg="#1a1a1a", fg="white").pack(pady=(20, 5))
+        tk.Label(frame, text="ACEest Login", font=("Arial", 24), fg="#d4af37", bg="#1a1a1a").pack(pady=20)
+        tk.Label(frame, text="Username", fg="white", bg="#1a1a1a").pack(pady=5)
         self.username_var = tk.StringVar()
-        tk.Entry(self.login_win, textvariable=self.username_var, bg="#333", fg="white").pack()
-
-        tk.Label(self.login_win, text="Password", bg="#1a1a1a", fg="white").pack(pady=(10, 5))
+        tk.Entry(frame, textvariable=self.username_var, bg="#333", fg="white").pack()
+        tk.Label(frame, text="Password", fg="white", bg="#1a1a1a").pack(pady=5)
         self.password_var = tk.StringVar()
-        tk.Entry(self.login_win, textvariable=self.password_var, show="*", bg="#333", fg="white").pack()
+        tk.Entry(frame, textvariable=self.password_var, show="*", bg="#333", fg="white").pack()
+        ttk.Button(frame, text="Login", command=self.login).pack(pady=20)
 
-        ttk.Button(self.login_win, text="Login", command=self.login_user).pack(pady=20)
-
-        self.login_win.transient(self.root)
-        self.login_win.grab_set()
-        self.login_win.focus_set()
-
-    def on_login_close(self):
-        self.root.destroy()
-
-    def login_user(self):
+    def login(self):
         username = self.username_var.get().strip()
         password = self.password_var.get().strip()
         if not requests:
@@ -112,128 +86,13 @@ class ACEestApp:
             )
             if r.status_code == 200:
                 data = r.json()
-                self.user_role = data.get("role", "User")
                 self.current_user = data.get("username", username)
-                self.login_win.grab_release()
-                self.login_win.destroy()
-                self.root.deiconify()
-                self.setup_ui()
-                self.refresh_client_list()
+                self.current_role = data.get("role", "User")
+                self.dashboard()
             else:
-                messagebox.showerror("Login Failed", "Invalid credentials\nTry admin / admin")
+                messagebox.showerror("Login Failed", "Invalid credentials")
         except Exception as e:
-            messagebox.showerror("Login Failed", f"Could not reach server\n{e}")
-
-    # ---------- UI ----------
-    def setup_ui(self):
-        header = tk.Label(
-            self.root,
-            text=f"ACEest Fitness Dashboard ({self.user_role})",
-            bg="#d4af37",
-            fg="black",
-            font=("Helvetica", 24, "bold"),
-            height=2,
-        )
-        header.pack(fill="x")
-
-        self.status_var = tk.StringVar(value="Ready")
-        status_bar = tk.Label(
-            self.root,
-            textvariable=self.status_var,
-            bg="#111111",
-            fg="#d4af37",
-            anchor="w",
-        )
-        status_bar.pack(side="bottom", fill="x")
-
-        main = tk.Frame(self.root, bg="#1a1a1a")
-        main.pack(fill="both", expand=True, padx=10, pady=10)
-
-        left = tk.LabelFrame(
-            main,
-            text=" Client Management ",
-            bg="#1a1a1a",
-            fg="#d4af37",
-            font=("Arial", 12, "bold"),
-        )
-        left.pack(side="left", fill="y", padx=10, pady=5)
-
-        tk.Label(left, text="Select Client", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
-        self.client_list = ttk.Combobox(left, state="readonly")
-        self.client_list.pack(pady=(0, 5))
-        self.client_list.bind("<<ComboboxSelected>>", self.on_client_selected)
-
-        tk.Label(left, text="Name", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
-        self.name = tk.StringVar()
-        tk.Entry(left, textvariable=self.name, bg="#333", fg="white").pack()
-
-        tk.Label(left, text="Age", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
-        self.age = tk.IntVar()
-        tk.Entry(left, textvariable=self.age, bg="#333", fg="white").pack()
-
-        tk.Label(left, text="Height (cm)", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
-        self.height = tk.DoubleVar()
-        tk.Entry(left, textvariable=self.height, bg="#333", fg="white").pack()
-
-        tk.Label(left, text="Weight (kg)", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
-        self.weight = tk.DoubleVar()
-        tk.Entry(left, textvariable=self.weight, bg="#333", fg="white").pack()
-
-        tk.Label(left, text="Program", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
-        self.program = tk.StringVar()
-        ttk.Combobox(
-            left,
-            textvariable=self.program,
-            values=list(self.programs.keys()),
-            state="readonly",
-        ).pack()
-
-        tk.Label(
-            left,
-            text="Membership Expiry (YYYY-MM-DD)",
-            bg="#1a1a1a",
-            fg="white",
-        ).pack(pady=(10, 0))
-        self.membership_var = tk.StringVar()
-        tk.Entry(left, textvariable=self.membership_var, bg="#333", fg="white").pack()
-
-        ttk.Button(left, text="Save Client", command=self.save_client).pack(pady=5)
-        ttk.Button(left, text="Load Client", command=self.load_client).pack(pady=5)
-        ttk.Button(left, text="Generate AI Program", command=self.generate_ai_program).pack(pady=5)
-        ttk.Button(left, text="Export PDF Report", command=self.export_pdf_report).pack(pady=5)
-
-        right = tk.Frame(main, bg="#1a1a1a")
-        right.pack(side="right", fill="both", expand=True, padx=5, pady=5)
-
-        notebook = ttk.Notebook(right)
-        notebook.pack(fill="both", expand=True)
-
-        summary_frame = tk.Frame(notebook, bg="#1a1a1a")
-        notebook.add(summary_frame, text="Client Summary")
-        self.summary = tk.Text(summary_frame, bg="#111", fg="white", font=("Consolas", 11))
-        self.summary.pack(fill="both", expand=True, padx=10, pady=10)
-
-        analytics_frame = tk.Frame(notebook, bg="#1a1a1a")
-        notebook.add(analytics_frame, text="Progress & Analytics")
-
-        if HAS_MATPLOTLIB:
-            self.fig, self.ax = plt.subplots(figsize=(6, 4))
-            self.ax.set_visible(False)
-            self.canvas = FigureCanvasTkAgg(self.fig, master=analytics_frame)
-            self.canvas.get_tk_widget().pack(pady=10, fill="both", expand=True)
-        else:
-            tk.Label(analytics_frame, text="(Install matplotlib for charts)", bg="#1a1a1a", fg="gray").pack(pady=10)
-
-        self.program_tree = ttk.Treeview(
-            analytics_frame,
-            columns=("day", "exercise", "sets", "reps"),
-            show="headings",
-        )
-        for col in ("day", "exercise", "sets", "reps"):
-            self.program_tree.heading(col, text=col.capitalize())
-        self.program_tree.pack(fill="both", expand=True, pady=10)
-
-        self.refresh_client_list()
+            messagebox.showerror("Login Failed", str(e))
 
     # ---------- HELPERS ----------
     def _api_get(self, path):
@@ -256,8 +115,50 @@ class ACEestApp:
         except Exception:
             return None
 
-    def set_status(self, text):
-        self.status_var.set(text)
+    # ---------- DASHBOARD ----------
+    def dashboard(self):
+        self.clear_root()
+
+        header = tk.Label(
+            self.root,
+            text=f"ACEest Dashboard ({self.current_role})",
+            font=("Arial", 24, "bold"),
+            bg="#d4af37",
+            fg="black",
+            height=2,
+        )
+        header.pack(fill="x")
+
+        left = tk.Frame(self.root, bg="#1a1a1a", width=350)
+        left.pack(side="left", fill="y", padx=10, pady=10)
+
+        tk.Label(left, text="Select Client", bg="#1a1a1a", fg="white").pack(pady=(5, 0))
+        self.client_list = ttk.Combobox(left, state="readonly")
+        self.client_list.pack()
+        self.client_list.bind("<<ComboboxSelected>>", self.load_client)
+        self.refresh_client_list()
+
+        ttk.Button(left, text="Add / Save Client", command=self.add_save_client).pack(pady=5)
+        ttk.Button(left, text="Generate AI Program", command=self.generate_program).pack(pady=5)
+        ttk.Button(left, text="Generate PDF Report", command=self.generate_pdf).pack(pady=5)
+        ttk.Button(left, text="Check Membership", command=self.check_membership).pack(pady=5)
+
+        right = tk.Frame(self.root, bg="#1a1a1a")
+        right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+        self.notebook = ttk.Notebook(right)
+        self.notebook.pack(fill="both", expand=True)
+
+        self.tab_summary = tk.Frame(self.notebook, bg="#1a1a1a")
+        self.notebook.add(self.tab_summary, text="Client Summary")
+        self.summary_text = tk.Text(self.tab_summary, bg="#111", fg="white", font=("Consolas", 11))
+        self.summary_text.pack(fill="both", expand=True, padx=10, pady=10)
+        self.chart_frame = tk.Frame(self.tab_summary, bg="#1a1a1a")
+        self.chart_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.tab_workouts = tk.Frame(self.notebook, bg="#1a1a1a")
+        self.notebook.add(self.tab_workouts, text="Workouts & Exercises")
+        self.setup_workout_tab()
 
     # ---------- CLIENT MANAGEMENT ----------
     def refresh_client_list(self):
@@ -270,147 +171,53 @@ class ACEestApp:
         if self.current_client and self.current_client in names:
             self.client_list.set(self.current_client)
 
-    def on_client_selected(self, event=None):
-        self.current_client = self.client_list.get()
-        if self.current_client:
-            self.load_client()
-
-    def save_client(self):
-        name = self.name.get().strip()
+    def add_save_client(self):
+        name = simpledialog.askstring("Client Name", "Enter client name:", parent=self.root)
         if not name:
-            messagebox.showerror("Error", "Name required")
             return
-        program = self.program.get() or ""
-        age = self.age.get() if self.age.get() else None
-        height = self.height.get() if self.height.get() else None
-        weight = self.weight.get() if self.weight.get() else None
-        membership = self.membership_var.get().strip() or None
-        factor = self.programs.get(program, {}).get("factor", 25)
-        calories = int(weight * factor) if weight and weight > 0 else None
-        payload = {
-            "name": name,
-            "age": age,
-            "height": height,
-            "weight": weight,
-            "program": program or "Beginner (BG)",
-            "calories": calories,
-            "membership_expiry": membership or "",
-        }
-        result = self._api_post("/api/clients", payload)
+        result = self._api_post("/api/clients", {"name": name, "membership_status": "Active"})
         if result is not None:
-            self.current_client = name
             self.refresh_client_list()
-            self.set_status(f"Saved client: {name}")
-            messagebox.showinfo("Saved", "Client data saved")
+            messagebox.showinfo("Saved", f"Client {name} saved")
         else:
-            messagebox.showerror("Error", "Could not save client. Is Flask running?")
+            messagebox.showerror("Error", "Could not save. Is Flask running?")
 
-    def load_client(self):
-        if not self.current_client:
+    def load_client(self, event=None):
+        name = self.client_list.get()
+        if not name:
             return
-        data = self._api_get(f"/api/clients/{quote(self.current_client)}")
-        if data is None or data.get("error"):
-            return
-        self.name.set(data.get("name", ""))
-        self.age.set(data.get("age") if data.get("age") is not None else 0)
-        self.height.set(data.get("height") if data.get("height") is not None else 0)
-        self.weight.set(data.get("weight") if data.get("weight") is not None else 0)
-        self.program.set(data.get("program") or "")
-        self.membership_var.set(data.get("membership_expiry") or "")
+        self.current_client = name
         self.refresh_summary()
-
-    def refresh_summary(self):
-        if not self.current_client:
-            return
-        data = self._api_get(f"/api/clients/{quote(self.current_client)}")
-        if not data or data.get("error"):
-            return
-        self.summary.configure(state="normal")
-        self.summary.delete("1.0", "end")
-        self.summary.insert(
-            "end",
-            f"Name: {data.get('name', '')}\n"
-            f"Age: {data.get('age', '')}\n"
-            f"Height: {data.get('height', '')} cm\n"
-            f"Weight: {data.get('weight', '')} kg\n"
-            f"Program: {data.get('program', '')}\n"
-            f"Membership Expiry: {data.get('membership_expiry', '')}",
-        )
-        self.summary.configure(state="disabled")
+        self.refresh_workouts()
+        self.plot_charts()
 
     # ---------- AI PROGRAM GENERATOR ----------
-    def generate_ai_program(self):
+    def generate_program(self):
         if not self.current_client:
-            messagebox.showerror("Error", "Select client first")
+            messagebox.showwarning("No Client", "Select a client first")
             return
-        exp_level = simpledialog.askstring(
-            "Experience",
-            "Enter experience (beginner/intermediate/advanced):",
-            parent=self.root,
-        )
-        if not exp_level or exp_level.lower() not in ("beginner", "intermediate", "advanced"):
-            messagebox.showerror("Error", "Invalid experience level")
+        program_type = random.choice(list(self.program_templates.keys()))
+        program_detail = random.choice(self.program_templates[program_type])
+        data = self._api_get(f"/api/clients/{quote(self.current_client)}")
+        if data is None or data.get("error"):
+            messagebox.showerror("Error", "Could not load client")
             return
-        program_name = self.program.get() or ""
-
-        exercises_pool = {
-            "Strength": [
-                "Squat", "Deadlift", "Bench Press", "Overhead Press", "Pull-Up", "Barbell Row",
-            ],
-            "Hypertrophy": [
-                "Leg Press", "Incline Dumbbell Press", "Lat Pulldown",
-                "Lateral Raise", "Bicep Curl", "Tricep Extension",
-            ],
-            "Conditioning": [
-                "Running", "Cycling", "Rowing", "Burpees", "Jump Rope", "Kettlebell Swings",
-            ],
-            "Full Body": [
-                "Push-Up", "Pull-Up", "Lunge", "Plank", "Dumbbell Row", "Dumbbell Press",
-            ],
-        }
-
-        focus = "Full Body"
-        if "Fat Loss" in program_name:
-            focus = "Conditioning"
-        elif "Muscle Gain" in program_name:
-            focus = "Hypertrophy"
-
-        if exp_level.lower() == "beginner":
-            sets_range = (2, 3)
-            reps_range = (8, 12)
-            days = 3
-        elif exp_level.lower() == "intermediate":
-            sets_range = (3, 4)
-            reps_range = (8, 15)
-            days = 4
+        payload = {**data, "program": program_detail}
+        payload.pop("id", None)
+        result = self._api_post("/api/clients", payload)
+        if result is not None:
+            messagebox.showinfo("Program Generated", f"Program for {self.current_client}: {program_detail}")
+            self.refresh_summary()
         else:
-            sets_range = (4, 5)
-            reps_range = (6, 15)
-            days = 5
-
-        weekly_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][:days]
-
-        for item in self.program_tree.get_children():
-            self.program_tree.delete(item)
-
-        for day in weekly_days:
-            n_ex = 3 if days < 4 else 4
-            exercises = random.sample(exercises_pool[focus], k=min(n_ex, len(exercises_pool[focus])))
-            for ex in exercises:
-                sets = random.randint(*sets_range)
-                reps = random.randint(*reps_range)
-                self.program_tree.insert("", "end", values=(day, ex, sets, reps))
-
-        self.set_status(f"AI program generated for {self.current_client}")
-        messagebox.showinfo("Generated", "AI workout program generated!")
+            messagebox.showerror("Error", "Could not update program")
 
     # ---------- PDF REPORT ----------
-    def export_pdf_report(self):
+    def generate_pdf(self):
         if not self.current_client:
-            messagebox.showwarning("No Client", "Select client first")
+            messagebox.showwarning("No Client", "Select a client first")
             return
         if not HAS_FPDF:
-            messagebox.showerror("Error", "Install fpdf to export PDF: pip install fpdf2")
+            messagebox.showerror("Error", "Install fpdf2: pip install fpdf2")
             return
         data = self._api_get(f"/api/clients/{quote(self.current_client)}")
         if not data or data.get("error"):
@@ -419,18 +226,129 @@ class ACEestApp:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, f"Client Report - {self.current_client}", ln=True, align="C")
+        pdf.cell(0, 10, f"ACEest Client Report - {self.current_client}", ln=True)
         pdf.set_font("Arial", "", 12)
-        pdf.ln(10)
-        pdf.cell(0, 10, f"Name: {data.get('name', '')}", ln=True)
-        pdf.cell(0, 10, f"Age: {data.get('age', '')}", ln=True)
-        pdf.cell(0, 10, f"Height: {data.get('height', '')} cm", ln=True)
-        pdf.cell(0, 10, f"Weight: {data.get('weight', '')} kg", ln=True)
-        pdf.cell(0, 10, f"Program: {data.get('program', '')}", ln=True)
-        pdf.cell(0, 10, f"Membership Expiry: {data.get('membership_expiry', '')}", ln=True)
+        for key in ["name", "age", "height", "weight", "program", "calories", "target_weight", "target_adherence", "membership_status", "membership_end"]:
+            val = data.get(key, "")
+            pdf.cell(0, 10, f"{key.replace('_', ' ').title()}: {val}", ln=True)
         filename = f"{self.current_client}_report.pdf"
         pdf.output(filename)
-        messagebox.showinfo("PDF Exported", f"Report saved as {filename}")
+        messagebox.showinfo("PDF Generated", f"{filename} created")
+
+    # ---------- MEMBERSHIP ----------
+    def check_membership(self):
+        if not self.current_client:
+            messagebox.showwarning("No Client", "Select a client first")
+            return
+        data = self._api_get(f"/api/clients/{quote(self.current_client)}")
+        if not data or data.get("error"):
+            messagebox.showerror("Error", "Client not found")
+            return
+        status = data.get("membership_status") or "N/A"
+        end = data.get("membership_end") or data.get("membership_expiry") or "N/A"
+        messagebox.showinfo("Membership", f"Membership: {status}\nRenewal Date: {end}")
+
+    # ---------- SUMMARY & CHARTS ----------
+    def refresh_summary(self):
+        if not self.current_client:
+            return
+        data = self._api_get(f"/api/clients/{quote(self.current_client)}")
+        if not data or data.get("error"):
+            return
+        text = (
+            f"Name: {data.get('name', '')}\n"
+            f"Program: {data.get('program', '')}\n"
+            f"Calories: {data.get('calories', '')}\n"
+            f"Membership: {data.get('membership_status', '') or data.get('membership_expiry', '')}"
+        )
+        self.summary_text.configure(state="normal")
+        self.summary_text.delete("1.0", "end")
+        self.summary_text.insert("end", text)
+        self.summary_text.configure(state="disabled")
+
+    def plot_charts(self):
+        for widget in self.chart_frame.winfo_children():
+            widget.destroy()
+        if not self.current_client:
+            return
+        data = self._api_get(f"/api/progress/{quote(self.current_client)}")
+        if not data:
+            return
+        if not HAS_MATPLOTLIB:
+            return
+        weeks = [d["week"] for d in data]
+        adherence = [d["adherence"] for d in data]
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.plot(weeks, adherence, marker="o")
+        ax.set_title("Weekly Adherence")
+        ax.set_ylabel("%")
+        ax.set_ylim(0, 100)
+        ax.grid(True)
+        canvas = FigureCanvasTkAgg(fig, self.chart_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    # ---------- WORKOUT TAB ----------
+    def setup_workout_tab(self):
+        columns = ("date", "type", "duration", "notes")
+        self.tree_workouts = ttk.Treeview(self.tab_workouts, columns=columns, show="headings")
+        for c in columns:
+            self.tree_workouts.heading(c, text=c.title())
+            self.tree_workouts.column(c, width=150)
+        self.tree_workouts.pack(fill="both", expand=True)
+        ttk.Button(self.tab_workouts, text="Add Workout", command=self.add_workout).pack(pady=5)
+
+    def refresh_workouts(self):
+        for row in self.tree_workouts.get_children():
+            self.tree_workouts.delete(row)
+        if not self.current_client:
+            return
+        data = self._api_get(f"/api/workouts/{quote(self.current_client)}")
+        if data:
+            for row in data:
+                self.tree_workouts.insert("", "end", values=(
+                    row.get("date", ""),
+                    row.get("workout_type", ""),
+                    row.get("duration_min", ""),
+                    row.get("notes", ""),
+                ))
+
+    def add_workout(self):
+        if not self.current_client:
+            messagebox.showwarning("No Client", "Select a client first")
+            return
+        win = tk.Toplevel(self.root)
+        win.title(f"Add Workout - {self.current_client}")
+        win.geometry("400x400")
+        win.configure(bg="#1a1a1a")
+        tk.Label(win, text="Date (YYYY-MM-DD)", bg="#1a1a1a", fg="white").pack()
+        date_var = tk.StringVar(value=date.today().isoformat())
+        tk.Entry(win, textvariable=date_var, bg="#333", fg="white").pack()
+        tk.Label(win, text="Type", bg="#1a1a1a", fg="white").pack()
+        type_var = tk.StringVar()
+        ttk.Combobox(win, textvariable=type_var, values=["Strength", "Hypertrophy", "Cardio", "Mobility"], state="readonly").pack()
+        tk.Label(win, text="Duration (min)", bg="#1a1a1a", fg="white").pack()
+        dur_var = tk.IntVar(value=60)
+        tk.Entry(win, textvariable=dur_var, bg="#333", fg="white").pack()
+        tk.Label(win, text="Notes", bg="#1a1a1a", fg="white").pack()
+        notes_var = tk.StringVar()
+        tk.Entry(win, textvariable=notes_var, bg="#333", fg="white").pack()
+
+        def save():
+            result = self._api_post("/api/workouts", {
+                "client_name": self.current_client,
+                "date": date_var.get(),
+                "workout_type": type_var.get(),
+                "duration_min": dur_var.get(),
+                "notes": notes_var.get(),
+            })
+            if result is not None:
+                self.refresh_workouts()
+                win.destroy()
+            else:
+                messagebox.showerror("Error", "Could not save workout")
+
+        ttk.Button(win, text="Save", command=save).pack(pady=10)
 
 
 if __name__ == "__main__":

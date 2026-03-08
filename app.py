@@ -68,6 +68,10 @@ def _init_tables(conn):
         cur.execute("ALTER TABLE clients ADD COLUMN target_adherence INTEGER")
     if "membership_expiry" not in cols:
         cur.execute("ALTER TABLE clients ADD COLUMN membership_expiry TEXT")
+    if "membership_status" not in cols:
+        cur.execute("ALTER TABLE clients ADD COLUMN membership_status TEXT")
+    if "membership_end" not in cols:
+        cur.execute("ALTER TABLE clients ADD COLUMN membership_end TEXT")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -177,7 +181,7 @@ def get_program(name):
     return jsonify(PROGRAMS[name])
 
 
-CLIENT_COLS = "id, name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry"
+CLIENT_COLS = "id, name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry, membership_status, membership_end"
 
 
 @app.route("/api/clients", methods=["GET"])
@@ -204,18 +208,18 @@ def get_client(name):
 
 @app.route("/api/clients", methods=["POST"])
 def create_client():
-    """Create or replace a client. JSON: name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry."""
+    """Create or replace a client. JSON: name (required), program (optional), age, height, weight, calories, target_weight, target_adherence, membership_expiry, membership_status, membership_end."""
     data = request.get_json() or {}
-    if not data.get("name") or not data.get("program"):
-        return jsonify({"error": "name and program required"}), 400
+    if not data.get("name"):
+        return jsonify({"error": "name required"}), 400
     name = str(data["name"]).strip()
+    program = str(data.get("program") or "Beginner (BG)")
     age = data.get("age")
     age = int(age) if age is not None else None
     height = data.get("height")
     height = float(height) if height is not None else None
     weight = data.get("weight")
     weight = float(weight) if weight is not None else None
-    program = str(data["program"])
     calories = data.get("calories")
     calories = int(calories) if calories is not None else None
     if (calories is None or calories <= 0) and program in PROGRAMS and weight:
@@ -225,13 +229,15 @@ def create_client():
     target_adherence = data.get("target_adherence")
     target_adherence = int(target_adherence) if target_adherence is not None else None
     membership_expiry = str(data.get("membership_expiry", "") or "")
+    membership_status = str(data.get("membership_status", "") or "")
+    membership_end = str(data.get("membership_end", "") or "")
     db = get_db()
     try:
         db.cursor().execute(
             """INSERT OR REPLACE INTO clients
-               (name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (name, age, height, weight, program, calories or 0, target_weight, target_adherence, membership_expiry or None),
+               (name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry, membership_status, membership_end)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name, age, height, weight, program, calories or 0, target_weight, target_adherence, membership_expiry or None, membership_status or None, membership_end or None),
         )
         db.commit()
     except Exception as e:

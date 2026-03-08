@@ -155,12 +155,20 @@ def test_api_clients_get_by_name_404(client):
     assert "error" in r.get_json()
 
 
-def test_api_clients_post_requires_name_and_program(client):
-    """POST /api/clients without name or program returns 400."""
+def test_api_clients_post_requires_name(client):
+    """POST /api/clients without name returns 400."""
     r = client.post("/api/clients", json={}, content_type="application/json")
     assert r.status_code == 400
-    r2 = client.post("/api/clients", json={"name": "X"}, content_type="application/json")
-    assert r2.status_code == 400
+
+
+def test_api_clients_post_name_only_creates_client(client):
+    """POST /api/clients with only name creates client with default program (3.2.4)."""
+    r = client.post("/api/clients", json={"name": "MinimalClient", "membership_status": "Active"}, content_type="application/json")
+    assert r.status_code == 201
+    data = r.get_json()
+    assert data["name"] == "MinimalClient"
+    assert data.get("program") == "Beginner (BG)"
+    assert data.get("membership_status") == "Active"
 
 
 def test_api_login_success(client):
