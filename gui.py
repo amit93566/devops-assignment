@@ -1,5 +1,5 @@
 """
-ACEest Fitness & Performance - Tkinter frontend (Aceestver-2.2.4).
+ACEest Fitness & Performance - Tkinter frontend (Aceestver-3.0.1).
 Client Management, Progress & Analytics, Workouts, Metrics via Flask API.
 Start Flask first (python app.py).
 """
