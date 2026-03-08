@@ -1,5 +1,5 @@
 """
-Unit tests for ACEest Fitness & Gym Flask application (Aceestver-1.0).
+Unit tests for ACEest Fitness & Gym Flask application (Aceestver-1.1).
 Validates routes, response codes, and API responses.
 """
 
@@ -45,7 +45,7 @@ def test_api_programs_returns_list(client):
 
 
 def test_api_program_valid_returns_200(client):
-    """GET /api/program/<name> returns 200 and workout/diet for valid program."""
+    """GET /api/program/<name> returns 200 and workout/diet/color/calorie_factor."""
     for name in PROGRAMS:
         r = client.get(f"/api/program/{quote(name)}")
         assert r.status_code == 200, f"Failed for program: {name}"
@@ -53,6 +53,7 @@ def test_api_program_valid_returns_200(client):
         assert "workout" in data
         assert "diet" in data
         assert "color" in data
+        assert "calorie_factor" in data
 
 
 def test_api_program_fat_loss_content(client):
@@ -61,7 +62,8 @@ def test_api_program_fat_loss_content(client):
     assert r.status_code == 200
     data = r.get_json()
     assert "Back Squat" in data["workout"]
-    assert "2,000 kcal" in data["diet"]
+    assert "2000" in data["diet"]
+    assert data["calorie_factor"] == 22
 
 
 def test_api_program_muscle_gain_content(client):
@@ -70,7 +72,8 @@ def test_api_program_muscle_gain_content(client):
     assert r.status_code == 200
     data = r.get_json()
     assert "Squat" in data["workout"]
-    assert "3,200 kcal" in data["diet"]
+    assert "3200" in data["diet"]
+    assert data["calorie_factor"] == 35
 
 
 def test_api_program_beginner_content(client):
@@ -78,8 +81,9 @@ def test_api_program_beginner_content(client):
     r = client.get(f"/api/program/{quote('Beginner (BG)')}")
     assert r.status_code == 200
     data = r.get_json()
-    assert "Circuit Training" in data["workout"]
+    assert "Full Body Circuit" in data["workout"]
     assert "120g/day" in data["diet"]
+    assert data["calorie_factor"] == 26
 
 
 def test_api_program_invalid_returns_404(client):

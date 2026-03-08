@@ -1,6 +1,6 @@
 """
 ACEest Fitness & Gym - Flask backend (API).
-Service endpoints for program data; consumed by Tkinter frontend (Aceestver-1.0).
+Service endpoints for program data; consumed by Tkinter frontend (Aceestver-1.1).
 """
 
 from flask import Flask, jsonify
@@ -39,7 +39,7 @@ def list_programs():
 
 @app.route("/api/program/<path:name>")
 def get_program(name):
-    """Return workout and diet for a program by name."""
+    """Return workout, diet, color, calorie_factor for a program by name."""
     if name not in PROGRAMS:
         return jsonify({"error": "Program not found"}), 404
     return jsonify(PROGRAMS[name])
