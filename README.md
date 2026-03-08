@@ -139,16 +139,23 @@ Jenkins is used as a secondary validation layer: it pulls the repo from GitHub a
    - Restart Jenkins: `sudo systemctl restart jenkins`
 
 4. **Create a Pipeline job**:
-   - New Item → name (e.g. `aceest-fitness`) → **Pipeline** → OK.
-   - Under **Pipeline**:
-     - **Definition**: Pipeline script from SCM.
-     - **SCM**: Git.
-     - **Repository URL**: your GitHub repo (e.g. `https://github.com/amit93566/devops-assignment.git`).
-     - **Branch**: `*/main` or `*/master`.
-     - **Script Path**: `Jenkinsfile` (root of repo).
-   - Save.
+   - **New Item** → enter name (e.g. `aceest-fitness`) → **Pipeline** → **OK**.
+   - In the job’s **Configure** screen:
+     - **Pipeline** section:
+       - **Definition**: Pipeline script from SCM.
+       - **SCM**: Git.
+       - **Repository URL**: your GitHub repo (e.g. `https://github.com/amit93566/devops-assignment.git`).
+       - **Branch**: `*/main` or `*/master` (match your default branch).
+       - **Script Path**: `Jenkinsfile` (root of repo).
+       - For a private repo: add credentials under **Manage Jenkins → Credentials** and select them here.
+     - **Build Triggers** (optional – for automatic builds):
+       - **GitHub hook trigger for GITScm polling**: build runs on every push/PR (requires a webhook in GitHub repo **Settings → Webhooks** pointing to `http://<JENKINS_URL>/github-webhook/`).
+       - Or **Poll SCM**: e.g. schedule `H/5 * * * *` so Jenkins checks GitHub every 5 minutes and builds if there are new commits.
+   - **Save**.
 
-5. **Run the build**: Click **Build Now**. The pipeline checks out the repo and runs the stages defined in `Jenkinsfile` (checkout, Docker build, then `docker run ... pytest tests/ -v`).
+5. **Run the build**:
+   - **Manual**: Click **Build Now**. The pipeline checks out the repo and runs the stages in `Jenkinsfile` (checkout, Docker build, then `docker run ... pytest tests/ -v`).
+   - **Automatic**: If you enabled a build trigger above, each push to GitHub (or each poll that finds changes) will start a build automatically.
 
 6. **Troubleshooting**:
    - If Docker commands fail with “permission denied”, ensure the Jenkins user is in the `docker` group and Jenkins was restarted.
