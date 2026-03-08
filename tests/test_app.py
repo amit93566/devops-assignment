@@ -116,7 +116,7 @@ def test_api_clients_post_creates_client(client):
     assert data["name"] == "Test User"
     assert data["program"] == "Beginner (BG)"
     assert data["calories"] == 1820
-    assert "height" in data and "target_weight" in data and "target_adherence" in data
+    assert "height" in data and "target_weight" in data and "target_adherence" in data and "membership_expiry" in data
 
 
 def test_api_clients_list_after_post(client):
@@ -161,6 +161,36 @@ def test_api_clients_post_requires_name_and_program(client):
     assert r.status_code == 400
     r2 = client.post("/api/clients", json={"name": "X"}, content_type="application/json")
     assert r2.status_code == 400
+
+
+def test_api_login_success(client):
+    """POST /api/login with admin/admin returns 200 and username, role."""
+    r = client.post(
+        "/api/login",
+        json={"username": "admin", "password": "admin"},
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data.get("username") == "admin"
+    assert data.get("role") == "Admin"
+
+
+def test_api_login_failure(client):
+    """POST /api/login with wrong credentials returns 401."""
+    r = client.post(
+        "/api/login",
+        json={"username": "admin", "password": "wrong"},
+        content_type="application/json",
+    )
+    assert r.status_code == 401
+    assert "error" in r.get_json()
+
+
+def test_api_login_requires_username_password(client):
+    """POST /api/login without username or password returns 400."""
+    r = client.post("/api/login", json={}, content_type="application/json")
+    assert r.status_code == 400
 
 
 def test_api_progress_post(client):

@@ -33,6 +33,17 @@ def get_db():
 def _init_tables(conn):
     cur = conn.cursor()
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            role TEXT
+        )
+    """)
+    cur.execute(
+        "INSERT OR IGNORE INTO users (username, password, role) VALUES ('admin','admin','Admin')"
+    )
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
@@ -42,7 +53,8 @@ def _init_tables(conn):
             program TEXT,
             calories INTEGER,
             target_weight REAL,
-            target_adherence INTEGER
+            target_adherence INTEGER,
+            membership_expiry TEXT
         )
     """)
     # Migrate old schema: add columns if missing
@@ -54,6 +66,8 @@ def _init_tables(conn):
         cur.execute("ALTER TABLE clients ADD COLUMN target_weight REAL")
     if "target_adherence" not in cols:
         cur.execute("ALTER TABLE clients ADD COLUMN target_adherence INTEGER")
+    if "membership_expiry" not in cols:
+        cur.execute("ALTER TABLE clients ADD COLUMN membership_expiry TEXT")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,6 +130,7 @@ def index():
                 "progress_by_client": "/api/progress/<name>",
                 "metrics_by_client": "/api/metrics/<name>",
                 "workouts_by_client": "/api/workouts/<name>",
+                "login": "/api/login (POST)",
             },
             "health": "/health",
         }
@@ -126,6 +141,26 @@ def index():
 def health():
     """Health check for CI/CD and load balancers."""
     return jsonify({"status": "ok"})
+
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    """Authenticate user. JSON: username, password. Returns username, role or 401."""
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not username or not password:
+        return jsonify({"error": "username and password required"}), 400
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT username, role FROM users WHERE username = ? AND password = ?",
+        (username, password),
+    )
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "Invalid credentials"}), 401
+    return jsonify({"username": row["username"], "role": row["role"]})
 
 
 @app.route("/api/programs")
@@ -142,7 +177,7 @@ def get_program(name):
     return jsonify(PROGRAMS[name])
 
 
-CLIENT_COLS = "id, name, age, height, weight, program, calories, target_weight, target_adherence"
+CLIENT_COLS = "id, name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry"
 
 
 @app.route("/api/clients", methods=["GET"])
@@ -169,7 +204,7 @@ def get_client(name):
 
 @app.route("/api/clients", methods=["POST"])
 def create_client():
-    """Create or replace a client. JSON: name, age, height, weight, program, calories, target_weight, target_adherence."""
+    """Create or replace a client. JSON: name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry."""
     data = request.get_json() or {}
     if not data.get("name") or not data.get("program"):
         return jsonify({"error": "name and program required"}), 400
@@ -189,13 +224,14 @@ def create_client():
     target_weight = float(target_weight) if target_weight is not None else None
     target_adherence = data.get("target_adherence")
     target_adherence = int(target_adherence) if target_adherence is not None else None
+    membership_expiry = str(data.get("membership_expiry", "") or "")
     db = get_db()
     try:
         db.cursor().execute(
             """INSERT OR REPLACE INTO clients
-               (name, age, height, weight, program, calories, target_weight, target_adherence)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (name, age, height, weight, program, calories or 0, target_weight, target_adherence),
+               (name, age, height, weight, program, calories, target_weight, target_adherence, membership_expiry)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name, age, height, weight, program, calories or 0, target_weight, target_adherence, membership_expiry or None),
         )
         db.commit()
     except Exception as e:

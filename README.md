@@ -6,8 +6,8 @@ Flask backend API plus Tkinter desktop frontend for fitness and gym management. 
 
 ## Architecture
 
-- **Backend (Flask)** – `app.py` exposes REST endpoints for programs and **SQLite-backed** data: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), `/api/progress` (POST), `/api/progress/<client_name>` (GET), `/api/metrics` (POST), `/api/metrics/<client_name>` (GET), `/api/workouts` (POST), `/api/workouts/<client_name>` (GET). DB: `aceest_fitness.db` (clients with height, target_weight, target_adherence; progress; workouts; exercises; metrics). Runs in Docker and in CI.
-- **Frontend (Tkinter)** – `gui.py` (Aceestver-3.0.1) is a desktop client: **Select Client** combobox, Client Management (name, age, height, weight, program, target weight/adherence, weekly adherence), Save/Load Client, Save Weekly Progress, **Log Workout**, **Log Body Metrics**, **View Workout History**; right panel with **Client Summary** and **Progress & Analytics** tabs (Adherence Chart, Weight Trend Chart, BMI & Risk Info). All data via Flask API. Run locally when you have a display.
+- **Backend (Flask)** – `app.py` exposes REST endpoints: **POST /api/login** (username, password → role); `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), plus progress, metrics, workouts. DB: `aceest_fitness.db` (**users** with default admin/admin; clients with **membership_expiry**; progress; workouts; exercises; metrics). Runs in Docker and in CI.
+- **Frontend (Tkinter)** – `gui.py` (Aceestver-3.1.2): **Login** first (admin/admin); then **ACEest Fitness Dashboard** with **Select Client**, Client Management (name, age, height, weight, program, **Membership Expiry**), **Save Client**, **Load Client**, **Generate AI Program** (experience → random weekly plan in Treeview), **Export PDF Report** (fpdf2). Right panel: **Client Summary** tab and **Progress & Analytics** tab (embedded chart placeholder + AI program Treeview). All data via Flask API. Run locally when you have a display.
 
 ---
 
