@@ -6,8 +6,8 @@ Flask backend API plus Tkinter desktop frontend for fitness and gym management. 
 
 ## Architecture
 
-- **Backend (Flask)** – `app.py` exposes REST endpoints for programs and **SQLite-backed** clients/progress: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), `/api/progress` (POST), `/api/progress/<client_name>` (GET). DB: `aceest_fitness.db` (clients + progress tables). Runs in Docker and in CI.
-- **Frontend (Tkinter)** – `gui.py` (Aceestver-2.2.1) is a desktop client: Client Management (name, age, weight, program, adherence), Save Client / Load Client / Save Progress / **View Progress Chart** via the Flask API only (no local SQLite). Chart uses matplotlib to plot weekly adherence. Client Summary panel. Run locally when you have a display.
+- **Backend (Flask)** – `app.py` exposes REST endpoints for programs and **SQLite-backed** data: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), `/api/progress` (POST), `/api/progress/<client_name>` (GET), `/api/metrics` (POST), `/api/metrics/<client_name>` (GET), `/api/workouts` (POST), `/api/workouts/<client_name>` (GET). DB: `aceest_fitness.db` (clients with height, target_weight, target_adherence; progress; workouts; exercises; metrics). Runs in Docker and in CI.
+- **Frontend (Tkinter)** – `gui.py` (Aceestver-2.2.4) is a desktop client: **Select Client** combobox, Client Management (name, age, height, weight, program, target weight/adherence, weekly adherence), Save/Load Client, Save Weekly Progress, **Log Workout**, **Log Body Metrics**, **View Workout History**; right panel with **Client Summary** and **Progress & Analytics** tabs (Adherence Chart, Weight Trend Chart, BMI & Risk Info). All data via Flask API. Run locally when you have a display.
 
 ---
 
@@ -62,7 +62,7 @@ Backend runs at **http://localhost:5000**.
 python gui.py
 ```
 
-The GUI loads the program list from the API; selecting a program fetches workout and diet from `/api/program/<name>` and updates the labels.
+The GUI loads programs and clients from the API. Select a client from the dropdown or enter name and Load; use Log Workout / Log Body Metrics to record data; view charts and BMI in the Progress & Analytics tab.
 
 ---
 

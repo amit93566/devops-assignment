@@ -45,17 +45,17 @@ def test_api_programs_returns_list(client):
 
 
 def test_api_program_valid_returns_200(client):
-    """GET /api/program/<name> returns 200 and workout/diet/color/calorie_factor."""
+    """GET /api/program/<name> returns 200 and workout/diet/color/calorie_factor/desc."""
     for name in PROGRAMS:
         r = client.get(f"/api/program/{quote(name)}")
         assert r.status_code == 200
         data = r.get_json()
-        assert "workout" in data and "diet" in data and "color" in data and "calorie_factor" in data
+        assert "workout" in data and "diet" in data and "color" in data and "calorie_factor" in data and "desc" in data
 
 
 def test_api_program_fat_loss_content(client):
-    """Fat Loss program contains expected content."""
-    r = client.get(f"/api/program/{quote('Fat Loss (FL)')}")
+    """Fat Loss 3-day program contains expected content."""
+    r = client.get(f"/api/program/{quote('Fat Loss (FL) – 3 day')}")
     assert r.status_code == 200
     data = r.get_json()
     assert "Back Squat" in data["workout"]
@@ -63,8 +63,9 @@ def test_api_program_fat_loss_content(client):
 
 
 def test_api_program_muscle_gain_content(client):
-    """Muscle Gain program contains expected content."""
-    r = client.get(f"/api/program/{quote('Muscle Gain (MG)')}")
+    """Muscle Gain PPL program contains expected content."""
+    name = next(k for k in PROGRAMS if "Muscle Gain" in k and "PPL" in k)
+    r = client.get(f"/api/program/{quote(name)}")
     assert r.status_code == 200
     data = r.get_json()
     assert "Squat" in data["workout"]
@@ -115,13 +116,14 @@ def test_api_clients_post_creates_client(client):
     assert data["name"] == "Test User"
     assert data["program"] == "Beginner (BG)"
     assert data["calories"] == 1820
+    assert "height" in data and "target_weight" in data and "target_adherence" in data
 
 
 def test_api_clients_list_after_post(client):
     """GET /api/clients returns saved client."""
     client.post(
         "/api/clients",
-        json={"name": "Alice", "program": "Fat Loss (FL)", "age": 25, "weight": 60, "calories": 1320},
+        json={"name": "Alice", "program": "Fat Loss (FL) – 3 day", "age": 25, "weight": 60, "calories": 1320},
         content_type="application/json",
     )
     r = client.get("/api/clients")
@@ -136,14 +138,14 @@ def test_api_clients_get_by_name(client):
     """GET /api/clients/<name> returns client."""
     client.post(
         "/api/clients",
-        json={"name": "Bob", "program": "Muscle Gain (MG)", "age": 28, "weight": 80, "calories": 2800},
+        json={"name": "Bob", "program": "Muscle Gain (MG) – PPL", "age": 28, "weight": 80, "calories": 2800},
         content_type="application/json",
     )
     r = client.get("/api/clients/Bob")
     assert r.status_code == 200
     data = r.get_json()
     assert data["name"] == "Bob"
-    assert data["program"] == "Muscle Gain (MG)"
+    assert data["program"] == "Muscle Gain (MG) – PPL"
 
 
 def test_api_clients_get_by_name_404(client):
@@ -216,3 +218,69 @@ def test_api_progress_get_by_client(client):
     assert len(data) == 2
     assert data[0]["week"] == "Week 01 - 2025" and data[0]["adherence"] == 80
     assert data[1]["week"] == "Week 02 - 2025" and data[1]["adherence"] == 90
+
+
+# ---------- Metrics API ----------
+
+
+def test_api_metrics_get_empty(client):
+    """GET /api/metrics/<client_name> returns empty list when no metrics."""
+    r = client.get("/api/metrics/AnyClient")
+    assert r.status_code == 200
+    assert r.get_json() == []
+
+
+def test_api_metrics_post_and_get(client):
+    """POST /api/metrics saves; GET returns list."""
+    client.post(
+        "/api/clients",
+        json={"name": "M", "program": "Beginner (BG)", "age": 30, "weight": 70},
+        content_type="application/json",
+    )
+    r = client.post(
+        "/api/metrics",
+        json={"client_name": "M", "date": "2025-03-01", "weight": 70.5, "waist": 80, "bodyfat": 18},
+        content_type="application/json",
+    )
+    assert r.status_code == 201
+    r2 = client.get("/api/metrics/M")
+    assert r2.status_code == 200
+    data = r2.get_json()
+    assert len(data) == 1
+    assert data[0]["date"] == "2025-03-01" and data[0]["weight"] == 70.5
+
+
+# ---------- Workouts API ----------
+
+
+def test_api_workouts_get_empty(client):
+    """GET /api/workouts/<client_name> returns empty list when no workouts."""
+    r = client.get("/api/workouts/AnyClient")
+    assert r.status_code == 200
+    assert r.get_json() == []
+
+
+def test_api_workouts_post_and_get(client):
+    """POST /api/workouts saves; GET returns list."""
+    client.post(
+        "/api/clients",
+        json={"name": "W", "program": "Beginner (BG)", "age": 28},
+        content_type="application/json",
+    )
+    r = client.post(
+        "/api/workouts",
+        json={
+            "client_name": "W",
+            "date": "2025-03-05",
+            "workout_type": "Strength",
+            "duration_min": 60,
+            "notes": "Heavy day",
+        },
+        content_type="application/json",
+    )
+    assert r.status_code == 201
+    r2 = client.get("/api/workouts/W")
+    assert r2.status_code == 200
+    data = r2.get_json()
+    assert len(data) == 1
+    assert data[0]["date"] == "2025-03-05" and data[0]["workout_type"] == "Strength"

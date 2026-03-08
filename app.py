@@ -37,17 +37,59 @@ def _init_tables(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
             age INTEGER,
+            height REAL,
             weight REAL,
             program TEXT,
-            calories INTEGER
+            calories INTEGER,
+            target_weight REAL,
+            target_adherence INTEGER
         )
     """)
+    # Migrate old schema: add columns if missing
+    cur.execute("PRAGMA table_info(clients)")
+    cols = {row[1] for row in cur.fetchall()}
+    if "height" not in cols:
+        cur.execute("ALTER TABLE clients ADD COLUMN height REAL")
+    if "target_weight" not in cols:
+        cur.execute("ALTER TABLE clients ADD COLUMN target_weight REAL")
+    if "target_adherence" not in cols:
+        cur.execute("ALTER TABLE clients ADD COLUMN target_adherence INTEGER")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             client_name TEXT,
             week TEXT,
             adherence INTEGER
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS workouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_name TEXT,
+            date TEXT,
+            workout_type TEXT,
+            duration_min INTEGER,
+            notes TEXT
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS exercises (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workout_id INTEGER,
+            name TEXT,
+            sets INTEGER,
+            reps INTEGER,
+            weight REAL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_name TEXT,
+            date TEXT,
+            weight REAL,
+            waist REAL,
+            bodyfat REAL
         )
     """)
     conn.commit()
@@ -72,6 +114,8 @@ def index():
                 "client_by_name": "/api/clients/<name>",
                 "progress": "/api/progress",
                 "progress_by_client": "/api/progress/<name>",
+                "metrics_by_client": "/api/metrics/<name>",
+                "workouts_by_client": "/api/workouts/<name>",
             },
             "health": "/health",
         }
@@ -98,18 +142,17 @@ def get_program(name):
     return jsonify(PROGRAMS[name])
 
 
+CLIENT_COLS = "id, name, age, height, weight, program, calories, target_weight, target_adherence"
+
+
 @app.route("/api/clients", methods=["GET"])
 def list_clients():
     """Return all clients."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT id, name, age, weight, program, calories FROM clients")
+    cur.execute(f"SELECT {CLIENT_COLS} FROM clients ORDER BY name")
     rows = cur.fetchall()
-    clients = [
-        {"id": r["id"], "name": r["name"], "age": r["age"], "weight": r["weight"], "program": r["program"], "calories": r["calories"]}
-        for r in rows
-    ]
-    return jsonify(clients)
+    return jsonify([dict(r) for r in rows])
 
 
 @app.route("/api/clients/<path:name>", methods=["GET"])
@@ -117,7 +160,7 @@ def get_client(name):
     """Return one client by name."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT id, name, age, weight, program, calories FROM clients WHERE name = ?", (name,))
+    cur.execute(f"SELECT {CLIENT_COLS} FROM clients WHERE name = ?", (name,))
     row = cur.fetchone()
     if not row:
         return jsonify({"error": "Client not found"}), 404
@@ -126,28 +169,39 @@ def get_client(name):
 
 @app.route("/api/clients", methods=["POST"])
 def create_client():
-    """Create or replace a client. JSON: name, age, weight, program, calories."""
+    """Create or replace a client. JSON: name, age, height, weight, program, calories, target_weight, target_adherence."""
     data = request.get_json() or {}
     if not data.get("name") or not data.get("program"):
         return jsonify({"error": "name and program required"}), 400
-    name = str(data["name"])
-    age = int(data.get("age", 0))
-    weight = float(data.get("weight", 0))
+    name = str(data["name"]).strip()
+    age = data.get("age")
+    age = int(age) if age is not None else None
+    height = data.get("height")
+    height = float(height) if height is not None else None
+    weight = data.get("weight")
+    weight = float(weight) if weight is not None else None
     program = str(data["program"])
-    calories = int(data.get("calories", 0))
-    if calories <= 0 and program in PROGRAMS:
+    calories = data.get("calories")
+    calories = int(calories) if calories is not None else None
+    if (calories is None or calories <= 0) and program in PROGRAMS and weight:
         calories = int(weight * PROGRAMS[program].get("calorie_factor", 0))
+    target_weight = data.get("target_weight")
+    target_weight = float(target_weight) if target_weight is not None else None
+    target_adherence = data.get("target_adherence")
+    target_adherence = int(target_adherence) if target_adherence is not None else None
     db = get_db()
     try:
         db.cursor().execute(
-            "INSERT OR REPLACE INTO clients (name, age, weight, program, calories) VALUES (?, ?, ?, ?, ?)",
-            (name, age, weight, program, calories),
+            """INSERT OR REPLACE INTO clients
+               (name, age, height, weight, program, calories, target_weight, target_adherence)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name, age, height, weight, program, calories or 0, target_weight, target_adherence),
         )
         db.commit()
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     cur = db.cursor()
-    cur.execute("SELECT id, name, age, weight, program, calories FROM clients WHERE name = ?", (name,))
+    cur.execute(f"SELECT {CLIENT_COLS} FROM clients WHERE name = ?", (name,))
     row = cur.fetchone()
     return jsonify(dict(row)), 201
 
@@ -185,6 +239,98 @@ def get_progress(client_name):
     rows = cur.fetchall()
     data = [{"week": r["week"], "adherence": r["adherence"]} for r in rows]
     return jsonify(data)
+
+
+@app.route("/api/metrics/<path:client_name>", methods=["GET"])
+def get_metrics(client_name):
+    """Return metrics for a client (date, weight, waist, bodyfat) ordered by date."""
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT date, weight, waist, bodyfat FROM metrics WHERE client_name = ? ORDER BY date",
+        (client_name,),
+    )
+    rows = cur.fetchall()
+    data = [{"date": r["date"], "weight": r["weight"], "waist": r["waist"], "bodyfat": r["bodyfat"]} for r in rows]
+    return jsonify(data)
+
+
+@app.route("/api/metrics", methods=["POST"])
+def save_metrics():
+    """Save body metrics. JSON: client_name, date, weight, waist, bodyfat."""
+    data = request.get_json() or {}
+    if not data.get("client_name"):
+        return jsonify({"error": "client_name required"}), 400
+    client_name = str(data["client_name"])
+    m_date = str(data.get("date", ""))
+    weight = data.get("weight") is not None and float(data["weight"]) or None
+    waist = data.get("waist") is not None and float(data["waist"]) or None
+    bodyfat = data.get("bodyfat") is not None and float(data["bodyfat"]) or None
+    db = get_db()
+    try:
+        db.cursor().execute(
+            "INSERT INTO metrics (client_name, date, weight, waist, bodyfat) VALUES (?, ?, ?, ?, ?)",
+            (client_name, m_date, weight, waist, bodyfat),
+        )
+        db.commit()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"status": "saved", "client_name": client_name, "date": m_date}), 201
+
+
+@app.route("/api/workouts/<path:client_name>", methods=["GET"])
+def get_workouts(client_name):
+    """Return workouts for a client (date, workout_type, duration_min, notes) ordered by date desc."""
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT date, workout_type, duration_min, notes FROM workouts WHERE client_name = ? ORDER BY date DESC, id DESC",
+        (client_name,),
+    )
+    rows = cur.fetchall()
+    data = [
+        {"date": r["date"], "workout_type": r["workout_type"], "duration_min": r["duration_min"], "notes": r["notes"] or ""}
+        for r in rows
+    ]
+    return jsonify(data)
+
+
+@app.route("/api/workouts", methods=["POST"])
+def save_workout():
+    """Save a workout. JSON: client_name, date, workout_type, duration_min, notes, exercises (optional list)."""
+    data = request.get_json() or {}
+    if not data.get("client_name"):
+        return jsonify({"error": "client_name required"}), 400
+    if not data.get("date") or not data.get("workout_type"):
+        return jsonify({"error": "date and workout_type required"}), 400
+    client_name = str(data["client_name"])
+    w_date = str(data["date"])
+    workout_type = str(data.get("workout_type", ""))
+    duration_min = int(data.get("duration_min", 0))
+    notes = str(data.get("notes", ""))
+    db = get_db()
+    try:
+        cur = db.cursor()
+        cur.execute(
+            "INSERT INTO workouts (client_name, date, workout_type, duration_min, notes) VALUES (?, ?, ?, ?, ?)",
+            (client_name, w_date, workout_type, duration_min, notes),
+        )
+        workout_id = cur.lastrowid
+        for ex in data.get("exercises") or []:
+            cur.execute(
+                "INSERT INTO exercises (workout_id, name, sets, reps, weight) VALUES (?, ?, ?, ?, ?)",
+                (
+                    workout_id,
+                    str(ex.get("name", "")),
+                    int(ex.get("sets", 0)),
+                    int(ex.get("reps", 0)),
+                    float(ex.get("weight", 0)),
+                ),
+            )
+        db.commit()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"status": "saved", "client_name": client_name, "workout_id": workout_id}), 201
 
 
 if __name__ == "__main__":
