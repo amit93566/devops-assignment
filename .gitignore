@@ -27,3 +27,6 @@ htmlcov/
 # Env files (if used later)
 .env
 .env.local
+
+# SQLite 
+aceest_fitness.db

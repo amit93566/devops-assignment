@@ -6,8 +6,8 @@ Flask backend API plus Tkinter desktop frontend for fitness and gym management. 
 
 ## Architecture
 
-- **Backend (Flask)** – `app.py` exposes REST endpoints: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/health`. Runs in Docker and in CI.
-- **Frontend (Tkinter)** – `gui.py` (Aceestver-1.1.2) is a desktop client: client profile (name, age, weight, program, adherence, coach notes), weekly training plan, nutrition plan, estimated calories, client list table, progress chart (matplotlib), and CSV export. Save Client and Reset. Fetches data from the Flask API. Run locally when you have a display.
+- **Backend (Flask)** – `app.py` exposes REST endpoints for programs and **SQLite-backed** clients/progress: `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST), `/api/clients/<name>` (GET), `/api/progress` (POST). DB: `aceest_fitness.db` (clients + progress tables). Runs in Docker and in CI.
+- **Frontend (Tkinter)** – `gui.py` (Aceestver-4) is a desktop client: Client Management (name, age, weight, program, adherence), Save Client / Load Client / Save Progress via the Flask API only (no local SQLite). Client Summary panel. Run locally when you have a display.
 
 ---
 
@@ -145,7 +145,9 @@ Configure a Jenkins job to pull this repo from GitHub and run a clean build (e.g
 | GET | `/health` | Health check (JSON) |
 | GET | `/api/programs` | List of program names (JSON) |
 | GET | `/api/program/<name>` | Workout, diet, color, calorie_factor (JSON); 404 if not found |
-| GET | `/api/clients` | List of saved clients (JSON) |
-| POST | `/api/clients` | Create a client; JSON: name, program, age, weight, adherence, notes |
+| GET | `/api/clients` | List of all clients (JSON) |
+| GET | `/api/clients/<name>` | One client by name (JSON); 404 if not found |
+| POST | `/api/clients` | Create or replace client; JSON: name, program, age, weight, calories |
+| POST | `/api/progress` | Save progress; JSON: client_name, week, adherence |
 
-Program names: **Fat Loss (FL)**, **Muscle Gain (MG)**, **Beginner (BG)**. The Tkinter GUI (Aceestver-1.1.2) uses these endpoints for program details, client list, and CSV export.
+Program names: **Fat Loss (FL)**, **Muscle Gain (MG)**, **Beginner (BG)**. SQLite DB `aceest_fitness.db` is created by the Flask app (clients + progress tables). The GUI uses these endpoints only; no local DB.

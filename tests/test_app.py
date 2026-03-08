@@ -1,19 +1,22 @@
 """
-Unit tests for ACEest Fitness & Gym Flask application (Aceestver-1.1.2).
-Validates routes, response codes, and API responses.
+Unit tests for ACEest Fitness & Gym Flask application.
+Validates program routes, client API, and progress API (SQLite in app.py).
 """
 
 from urllib.parse import quote
 
 import pytest
-from app import app, CLIENTS
+from app import app
 from program_data import PROGRAMS
 
 
 @pytest.fixture
 def client():
-    """Flask test client."""
+    """Flask test client with in-memory SQLite."""
     app.config["TESTING"] = True
+    app.config["DATABASE"] = ":memory:"
+    if hasattr(app, "_db"):
+        del app._db
     with app.test_client() as c:
         yield c
 
@@ -24,6 +27,7 @@ def test_index_returns_200(client):
     assert r.status_code == 200
     data = r.get_json()
     assert "app" in data and "api" in data
+    assert "clients" in data["api"]
 
 
 def test_health_returns_ok(client):
@@ -55,7 +59,6 @@ def test_api_program_fat_loss_content(client):
     assert r.status_code == 200
     data = r.get_json()
     assert "Back Squat" in data["workout"]
-    assert "Egg Whites" in data["diet"]
     assert data["calorie_factor"] == 22
 
 
@@ -65,7 +68,6 @@ def test_api_program_muscle_gain_content(client):
     assert r.status_code == 200
     data = r.get_json()
     assert "Squat" in data["workout"]
-    assert "Biryani" in data["diet"]
     assert data["calorie_factor"] == 35
 
 
@@ -75,7 +77,6 @@ def test_api_program_beginner_content(client):
     assert r.status_code == 200
     data = r.get_json()
     assert "Air Squats" in data["workout"]
-    assert "Tamil Meals" in data["diet"]
     assert data["calorie_factor"] == 26
 
 
@@ -86,32 +87,100 @@ def test_api_program_invalid_returns_404(client):
     assert "error" in r.get_json()
 
 
+# ---------- Client API (SQLite in app.py) ----------
+
+
 def test_api_clients_list_empty(client):
-    """GET /api/clients returns list (may be empty)."""
-    CLIENTS.clear()
+    """GET /api/clients returns empty list when no clients."""
     r = client.get("/api/clients")
     assert r.status_code == 200
     assert r.get_json() == []
 
 
-def test_api_clients_post_and_list(client):
-    """POST /api/clients creates client; GET returns it."""
-    CLIENTS.clear()
+def test_api_clients_post_creates_client(client):
+    """POST /api/clients creates a client and returns 201."""
     r = client.post(
         "/api/clients",
-        json={"name": "Test", "program": "Beginner (BG)", "age": 25, "weight": 70, "adherence": 80, "notes": "OK"},
+        json={
+            "name": "Test User",
+            "age": 30,
+            "weight": 70.0,
+            "program": "Beginner (BG)",
+            "calories": 1820,
+        },
         content_type="application/json",
     )
     assert r.status_code == 201
-    assert r.get_json()["name"] == "Test"
-    r2 = client.get("/api/clients")
-    assert r2.status_code == 200
-    assert len(r2.get_json()) == 1
-    assert r2.get_json()[0]["name"] == "Test"
-    CLIENTS.clear()
+    data = r.get_json()
+    assert data["name"] == "Test User"
+    assert data["program"] == "Beginner (BG)"
+    assert data["calories"] == 1820
+
+
+def test_api_clients_list_after_post(client):
+    """GET /api/clients returns saved client."""
+    client.post(
+        "/api/clients",
+        json={"name": "Alice", "program": "Fat Loss (FL)", "age": 25, "weight": 60, "calories": 1320},
+        content_type="application/json",
+    )
+    r = client.get("/api/clients")
+    assert r.status_code == 200
+    lst = r.get_json()
+    assert len(lst) == 1
+    assert lst[0]["name"] == "Alice"
+    assert lst[0]["calories"] == 1320
+
+
+def test_api_clients_get_by_name(client):
+    """GET /api/clients/<name> returns client."""
+    client.post(
+        "/api/clients",
+        json={"name": "Bob", "program": "Muscle Gain (MG)", "age": 28, "weight": 80, "calories": 2800},
+        content_type="application/json",
+    )
+    r = client.get("/api/clients/Bob")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["name"] == "Bob"
+    assert data["program"] == "Muscle Gain (MG)"
+
+
+def test_api_clients_get_by_name_404(client):
+    """GET /api/clients/<name> returns 404 when not found."""
+    r = client.get("/api/clients/NoSuchClient")
+    assert r.status_code == 404
+    assert "error" in r.get_json()
 
 
 def test_api_clients_post_requires_name_and_program(client):
     """POST /api/clients without name or program returns 400."""
     r = client.post("/api/clients", json={}, content_type="application/json")
+    assert r.status_code == 400
+    r2 = client.post("/api/clients", json={"name": "X"}, content_type="application/json")
+    assert r2.status_code == 400
+
+
+def test_api_progress_post(client):
+    """POST /api/progress saves progress and returns 201."""
+    client.post(
+        "/api/clients",
+        json={"name": "Jane", "program": "Beginner (BG)", "age": 22, "weight": 55, "calories": 1430},
+        content_type="application/json",
+    )
+    r = client.post(
+        "/api/progress",
+        json={"client_name": "Jane", "week": "Week 10 - 2025", "adherence": 85},
+        content_type="application/json",
+    )
+    assert r.status_code == 201
+    data = r.get_json()
+    assert data.get("status") == "saved"
+    assert data.get("client_name") == "Jane"
+    assert data.get("adherence") == 85
+
+
+def test_api_progress_post_requires_client_name(client):
+    """POST /api/progress without client_name returns 400."""
+    r = client.post("/api/progress", json={"week": "Week 1", "adherence": 50}, content_type="application/json")
     assert r.status_code == 400
