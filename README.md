@@ -10,6 +10,19 @@ A Flask backend API plus Tkinter desktop frontend for fitness and gym management
 - **Frontend (Tkinter)** – `gui.py` (Aceestver-3.2.4): **Login** on root (admin/admin) → **Dashboard**: left panel **Select Client**, **Add / Save Client** (name + Active), **Generate AI Program** (random from templates), **Generate PDF Report**, **Check Membership**; right panel **Client Summary** (text + adherence chart) and **Workouts & Exercises** (Treeview + Add Workout). All data via Flask API. Run locally when you have a display.
 
 ---
+## Version overview and main features
+
+| Version   | Main features |
+|-----------|----------------|
+| **1.0**   | Basic Tkinter UI, program selection (Fat Loss, Muscle Gain, Beginner). |
+| **1.1**   | Simplified UI, program selection and display. |
+| **1.1.2** | Client list, CSV export, matplotlib progress chart. |
+| **2.2.1** | Client Management (name, age, weight, program, adherence), Save/Load Client, Save Progress, **View Progress Chart** (matplotlib). |
+| **2.2.4** | Status bar, **Select Client** combobox, Height, Target Weight/Adherence, **Notebook** (Client Summary + Progress & Analytics), **Log Workout**, **Log Body Metrics**, **View Workout History**, Adherence Chart, Weight Trend Chart, **BMI & Risk Info**, workouts/metrics in backend. |
+| **3.0.1** | Same feature set as 2.2.4 (version label only). |
+| **3.1.2** | **Login** (admin/admin), **Dashboard** with role in header, **Membership Expiry** field, **Generate AI Program** (experience level + random plan in Treeview), **Export PDF Report** (fpdf2), embedded chart placeholder. |
+| **3.2.4** | **Login on root** (no Toplevel), **membership_status** & **membership_end**, **Add / Save Client** (simpledialog, name + Active), **Generate AI Program** (random from templates), **Generate PDF Report**, **Check Membership**, Client Summary + **adherence chart**, **Workouts & Exercises** tab + **Add Workout**. |
+
 
 ## Local Setup and Execution
 
