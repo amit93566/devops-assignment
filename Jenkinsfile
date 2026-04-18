@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PATH = "/var/lib/jenkins/.local/bin:${env.PATH}"
+        PATH = "/var/lib/jenkins/.local/bin:/opt/sonar-scanner/bin:${env.PATH}"
     }
 
     stages {
@@ -28,7 +28,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('aceest-fitness') {
-                    sh '/var/lib/jenkins/tools/hudson.plugins.sonar.SonarRunnerInstallation/SonarScanner/bin/sonar-scanner'
+                    sh '/opt/sonar-scanner/bin/sonar-scanner'
                 }
             }
         }
@@ -48,4 +48,4 @@ pipeline {
         }
 
     }
-}
+}   
