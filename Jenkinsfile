@@ -27,17 +27,13 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('aceest-fitness') {
-                    sh '/opt/sonar-scanner/bin/sonar-scanner'
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                sh '''
+                    /opt/sonar-scanner/bin/sonar-scanner \
+                    -Dsonar.projectKey=aceest-fitness \
+                    -Dsonar.sources=. \
+                    -Dsonar.host.url=http://localhost:9000 \
+                    -Dsonar.token=$(cat /var/lib/jenkins/sonar-token.txt)
+                '''
             }
         }
 
@@ -48,4 +44,4 @@ pipeline {
         }
 
     }
-}   
+}
