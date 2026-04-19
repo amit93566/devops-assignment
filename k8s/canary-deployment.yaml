@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-stable
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: aceest
+        track: stable
+    spec:
+      containers:
+      - name: aceest
+        image: aceest-fitness:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aceest
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: aceest
+        track: canary
+    spec:
+      containers:
+      - name: aceest
+        image: aceest-fitness:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-canary-service
+spec:
+  selector:
+    app: aceest
+  ports:
+  - port: 80
+    targetPort: 5000
+  type: NodePort
