@@ -1,215 +1,299 @@
-# ACEest Fitness & Gym
+## 1. Overview
 
-A Flask backend API plus Tkinter desktop frontend for fitness and gym management. Program data is served by the Flask API and consumed by the Tkinter GUI or any HTTP client. Includes CI/CD via GitHub Actions and Jenkins BUILD.
+ACEest Fitness & Gym is a Flask backend API with a Tkinter desktop frontend for fitness and gym management. The application supports user login, client management, membership tracking, AI-style program generation, PDF reports, and workout logging.
+
+The project implements a complete DevOps pipeline including:
+- Version Control (Git/GitHub)
+- Unit Testing (Pytest)
+- Code Quality (SonarQube)
+- Containerization (Docker)
+- CI/CD (GitHub Actions + Jenkins)
+- Container Registry (Docker Hub)
+- Orchestration (Minikube + AWS EKS)
+
+
+
+## 2. Architecture
+
+**Backend (Flask):** `app.py` provides REST endpoints for login, programs, clients, progress, metrics, and workouts. Data is stored in SQLite (`aceest_fitness.db`).
+
+**Frontend (Tkinter):** `gui.py` is a desktop client that logs in (admin/admin), then shows a dashboard with client selection, Add/Save Client, Generate AI Program, Generate PDF Report, Check Membership, Client Summary with adherence chart, and Workouts & Exercises tab.
+
+
+
+## 3. Version History
+
+| Version | Main Features |
+|---------|--------------|
+| 1.0 | Basic Tkinter UI, program selection (Fat Loss, Muscle Gain, Beginner) |
+| 1.1 | Simplified UI, program selection and display |
+| 1.1.2 | Client list, CSV export, matplotlib progress chart |
+| 2.2.1 | Client Management, Save/Load Client, Save Progress, View Progress Chart |
+| 2.2.4 | Status bar, Select Client combobox, Notebook tabs, Log Workout, Log Body Metrics |
+| 3.0.1 | Same feature set as 2.2.4 (version label only) |
+| 3.1.2 | Login, Dashboard, Membership Expiry, Generate AI Program, Export PDF Report |
+| 3.2.4 | Login on root, membership_status, Add/Save Client, Generate AI Program, Generate PDF Report, Check Membership, Workouts & Exercises tab |
 
 ---
 
-## Architecture
-
-- **Backend (Flask)** – `app.py` exposes REST endpoints: **POST /api/login**; `/api/programs`, `/api/program/<name>`, `/api/clients` (GET/POST; name required, program optional), `/api/clients/<name>` (GET), plus progress, metrics, workouts. DB: `aceest_fitness.db` (users; clients with **membership_status**, **membership_end**; progress; workouts; exercises; metrics). Runs in Docker and in CI.
-- **Frontend (Tkinter)** – `gui.py` (Aceestver-3.2.4): **Login** on root (admin/admin) → **Dashboard**: left panel **Select Client**, **Add / Save Client** (name + Active), **Generate AI Program** (random from templates), **Generate PDF Report**, **Check Membership**; right panel **Client Summary** (text + adherence chart) and **Workouts & Exercises** (Treeview + Add Workout). All data via Flask API. Run locally when you have a display.
-
----
-## Version overview and main features
-
-| Version   | Main features |
-|-----------|----------------|
-| **1.0**   | Basic Tkinter UI, program selection (Fat Loss, Muscle Gain, Beginner). |
-| **1.1**   | Simplified UI, program selection and display. |
-| **1.1.2** | Client list, CSV export, matplotlib progress chart. |
-| **2.2.1** | Client Management (name, age, weight, program, adherence), Save/Load Client, Save Progress, **View Progress Chart** (matplotlib). |
-| **2.2.4** | Status bar, **Select Client** combobox, Height, Target Weight/Adherence, **Notebook** (Client Summary + Progress & Analytics), **Log Workout**, **Log Body Metrics**, **View Workout History**, Adherence Chart, Weight Trend Chart, **BMI & Risk Info**, workouts/metrics in backend. |
-| **3.0.1** | Same feature set as 2.2.4 (version label only). |
-| **3.1.2** | **Login** (admin/admin), **Dashboard** with role in header, **Membership Expiry** field, **Generate AI Program** (experience level + random plan in Treeview), **Export PDF Report** (fpdf2), embedded chart placeholder. |
-| **3.2.4** | **Login on root** (no Toplevel), **membership_status** & **membership_end**, **Add / Save Client** (simpledialog, name + Active), **Generate AI Program** (random from templates), **Generate PDF Report**, **Check Membership**, Client Summary + **adherence chart**, **Workouts & Exercises** tab + **Add Workout**. |
-
-
-## Local Setup and Execution
+## 4. Local Setup and Execution
 
 ### Prerequisites
-
 - Python 3.11+
 - pip
-- Display (only for running the Tkinter GUI)
+- Display (for running the Tkinter GUI)
 
-### 1. Clone and enter the project
+### Steps
 
+**1. Clone the repository:**
 ```bash
-git clone https://github.com/amit93566/devops-assignment
-cd flask_app
+git clone https://github.com/amit93566/devops-assignment.git
+cd devops-assignment
 ```
 
-### 2. Virtual environment (recommended)
-
+**2. Create and activate virtual environment:**
 ```bash
 python3 -m venv venv
-source venv/bin/activate   # Linux/macOS
-# or: venv\Scripts\activate   # Windows
+source venv/bin/activate        # Linux/macOS
+# or: venv\Scripts\activate     # Windows
 ```
 
-### 3. Install dependencies
-
+**3. Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Run the application
-
-**Start the Flask backend:**
-
+**4. Start the Flask backend:**
 ```bash
 python app.py
-```
-
-Or with Gunicorn:
-
-```bash
+# Or with Gunicorn:
 gunicorn --bind 0.0.0.0:5000 app:app
 ```
+Backend runs at `http://localhost:5000`
 
-Backend runs at **http://localhost:5000**.
-
-**Start the Tkinter frontend** (in another terminal, with venv activated):
-
+**5. Start the Tkinter frontend (in another terminal):**
 ```bash
 python gui.py
 ```
+Login with **admin / admin**
 
-Log in with **admin** / **admin**. Use **Select Client** to choose a client, **Add / Save Client** to create one, **Generate AI Program** and **Generate PDF Report** as needed; **Check Membership** shows status. The **Client Summary** tab shows profile and adherence chart; **Workouts & Exercises** lists workouts and lets you add new ones.
 
----
 
-## Running Tests Manually
-
-From the project root (with dependencies installed):
+## 5. Running Tests Manually
 
 ```bash
 pytest tests/ -v
 ```
 
-Tests target the Flask app (routes, status codes, JSON responses). Optional coverage:
+Tests cover Flask routes, status codes, and JSON responses. 26 tests total, all passing.
 
+Optional coverage report:
 ```bash
 pip install pytest-cov
 pytest tests/ -v --cov=app --cov-report=term-missing
 ```
 
----
 
-## Docker
+## 6. Docker
 
 ### Build the image
-
 ```bash
 docker build -t aceest-fitness:latest .
 ```
 
-### Run the Flask API in the container
-
+### Run the Flask API
 ```bash
 docker run -p 5000:5000 aceest-fitness:latest
 ```
 
-Then run `python gui.py` on the host; it uses **http://localhost:5000** by default.
-
-### Run tests inside the container
-
+### Run tests inside container
 ```bash
 docker run --rm aceest-fitness:latest pytest tests/ -v
 ```
 
----
 
-## CI/CD Overview
+## 7. Docker Hub
 
-### GitHub Actions (`.github/workflows/main.yml`)
+Images are versioned and pushed to Docker Hub:
 
-Runs on every **push** and **pull_request** to the default branch:
+| Tag | Description |
+|-----|-------------|
+| `latest` | Latest stable build |
+| `v1.0` | Version 1.0 — stable production |
+| `v2.0` | Version 2.0 — new release |
 
-1. **Build & Lint** – Set up Python, install dependencies, run `python -m py_compile` on the application to check syntax.
-2. **Docker Image Assembly** – Build the Flask app Docker image.
-3. **Automated Testing** – Run the Pytest suite inside the container against the Flask application.
+```bash
+docker pull 2024tm93566bits/aceest_fitness_image:latest
+docker pull 2024tm93566bits/aceest_fitness_image:v1.0
+docker pull 2024tm93566bits/aceest_fitness_image:v2.0
+```
 
-### Jenkins BUILD Phase
 
-Jenkins is used as a secondary validation layer: it pulls the repo from GitHub and runs a clean build (Docker build + run tests). See **Jenkins Setup** below.
 
----
+## 8. GitHub Actions CI/CD
 
-## Jenkins Setup
+Defined in `.github/workflows/main.yml`. Runs on every push and pull request to the main branch.
 
-1. **Install Jenkins** (if not already):
-   - On Ubuntu/Debian: `sudo apt install openjdk-11-jdk` then add the Jenkins repo and install `jenkins`.
-   - Or use the official Jenkins Docker image.
+**Stages:**
+1. **Build & Lint** — Set up Python, install dependencies, run `python -m py_compile` to check syntax
+2. **Docker Image Assembly** — Build the Flask application Docker image
+3. **Automated Testing** — Run the Pytest suite inside the container
 
-2. **Install required plugins** (Manage Jenkins → Plugins):
-   - **Pipeline**
-   - **Git** (and optionally **GitHub** for repo URL)
-   - **Docker Pipeline** (optional, if you run Docker inside Jenkins)
 
-3. **Ensure Docker is available** to the Jenkins user (if the pipeline runs `docker`):
-   - Add the Jenkins user to the `docker` group: `sudo usermod -aG docker jenkins`
-   - Restart Jenkins: `sudo systemctl restart jenkins`
 
-4. **Create a Pipeline job**:
-   - **New Item** → enter name (e.g. `aceest-fitness`) → **Pipeline** → **OK**.
-   - In the job’s **Configure** screen:
-     - **Pipeline** section:
-       - **Definition**: Pipeline script from SCM.
-       - **SCM**: Git.
-       - **Repository URL**: your GitHub repo (e.g. `https://github.com/amit93566/devops-assignment.git`).
-       - **Branch**: `*/main` or `*/master` (match your default branch).
-       - **Script Path**: `Jenkinsfile` (root of repo).
-       - For a private repo: add credentials under **Manage Jenkins → Credentials** and select them here.
-     - **Build Triggers** (optional – for automatic builds):
-       - **GitHub hook trigger for GITScm polling**: build runs on every push/PR (requires a webhook in GitHub repo **Settings → Webhooks** pointing to `http://<JENKINS_URL>/github-webhook/`).
-       - Or **Poll SCM**: e.g. schedule `H/5 * * * *` so Jenkins checks GitHub every 5 minutes and builds if there are new commits.
-   - **Save**.
+## 9. Jenkins Pipeline
 
-5. **Run the build**:
-   - **Manual**: Click **Build Now**. The pipeline checks out the repo and runs the stages in `Jenkinsfile` (checkout, Docker build, then `docker run ... pytest tests/ -v`).
-   - **Automatic**: If you enabled a build trigger above, each push to GitHub (or each poll that finds changes) will start a build automatically.
+Jenkins is used as a secondary validation layer. The pipeline is defined in `Jenkinsfile`.
 
-6. **Troubleshooting**:
-   - If Docker commands fail with “permission denied”, ensure the Jenkins user is in the `docker` group and Jenkins was restarted.
-   - If the repo is private, add credentials in Jenkins (Username/Password or SSH key) and select them in the job’s Git configuration.
+**Pipeline Stages:**
+1. **Checkout** — Pull latest code from GitHub
+2. **Install Dependencies** — `pip install -r requirements.txt --break-system-packages`
+3. **Run Tests** — `python3 -m pytest --tb=short` (26 tests)
+4. **SonarQube Analysis** — Static code analysis with quality gate enforcement
+5. **Build Docker Image** — `docker build -t aceest-fitness:latest .`
 
----
+**Jenkins Setup:**
+- Job type: Pipeline
+- Trigger: Poll SCM (`H/5 * * * *`) — every 5 minutes
+- Pipeline definition: Pipeline script from SCM (Git)
+- Repository URL: `https://github.com/amit93566/devops-assignment.git`
+- Script Path: `Jenkinsfile`
 
-## Repository Layout
 
-| Path | Description |
-|------|-------------|
-| `app.py` | Flask backend (API and service endpoints) |
-| `gui.py` | Tkinter frontend (desktop client for the API) |
-| `program_data.py` | Program specification data (used by backend and tests) |
-| `requirements.txt` | Dependencies (Flask, Gunicorn, requests, matplotlib, fpdf2, pytest) |
-| `tests/test_app.py` | Pytest suite for the Flask application |
-| `Dockerfile` | Container image for the Flask backend |
-| `Jenkinsfile` | Jenkins Pipeline definition (checkout, build, test) |
-| `.github/workflows/main.yml` | GitHub Actions CI/CD workflow |
 
----
+## 10. SonarQube Code Quality
 
-## API Endpoints
+SonarQube Community Edition (v10.4.1) is integrated into the Jenkins pipeline for static code analysis.
+
+**Analysis Results:**
+- **Quality Gate Status:** Passed ✅
+- **Security:** 0 Open Issues (A)
+- **Reliability:** 1 Open Issue (C)
+- **Maintainability:** 11 Open Issues (A)
+- **Lines of Code:** 1.1k
+- **Duplications:** 0.0%
+
+**Run analysis manually:**
+```bash
+/opt/sonar-scanner/bin/sonar-scanner \
+  -Dsonar.projectKey=aceest-fitness \
+  -Dsonar.sources=. \
+  -Dsonar.host.url=http://localhost:9000 \
+  -Dsonar.token=YOUR_TOKEN
+```
+
+
+
+## 11. Kubernetes Deployment Strategies
+
+The application is deployed on both **Minikube (local)** and **AWS EKS (cloud)** using 5 deployment strategies. Each strategy uses two versions:
+- **v1.0** — Stable/Production version
+- **v2.0** — New/Test version
+
+### AWS EKS Cluster Details
+- **Cluster Name:** aceest-fitness-cluster
+- **Region:** eu-north-1
+- **Node Type:** t3.small
+- **Nodes:** 2 (min: 1, max: 3)
+
+### Deployment Strategies
+
+| Strategy | YAML File | Description |
+|----------|-----------|-------------|
+| Blue-Green | `k8s/blue-green-deployment.yaml` | v1.0 (blue) serves traffic; switch to v2.0 (green) for zero-downtime update |
+| Canary | `k8s/canary-deployment.yaml` | 75% traffic to v1.0 (stable), 25% to v2.0 (canary) |
+| Rolling Update | `k8s/rolling-update-deployment.yaml` | Gradually replace v1.0 pods with v2.0 |
+| A/B Testing | `k8s/ab-testing-deployment.yaml` | v1.0 (version-a) vs v2.0 (version-b) for comparison |
+| Shadow | `k8s/shadow-deployment.yaml` | v1.0 serves real traffic; v2.0 mirrors silently |
+
+### Deploy all strategies
+```bash
+kubectl apply -f k8s/blue-green-deployment.yaml
+kubectl apply -f k8s/canary-deployment.yaml
+kubectl apply -f k8s/rolling-update-deployment.yaml
+kubectl apply -f k8s/ab-testing-deployment.yaml
+kubectl apply -f k8s/shadow-deployment.yaml
+```
+
+### Rollback Commands
+
+**Blue-Green — switch back to stable (blue/v1.0):**
+```bash
+kubectl patch service aceest-service -p '{"spec":{"selector":{"version":"blue"}}}'
+```
+
+**Canary — rollback canary to stable:**
+```bash
+kubectl scale deployment aceest-canary --replicas=0
+kubectl scale deployment aceest-stable --replicas=3
+```
+
+**Rolling Update — rollback to previous version:**
+```bash
+kubectl rollout undo deployment/aceest-rolling
+```
+
+**A/B Testing — rollback version-b:**
+```bash
+kubectl scale deployment aceest-version-b --replicas=0
+```
+
+**Shadow — remove shadow deployment:**
+```bash
+kubectl scale deployment aceest-shadow --replicas=0
+```
+
+### AWS EKS Service Endpoints
+
+| Strategy | External URL |
+|----------|-------------|
+| Blue-Green | `http://ab05a17cde82d4b219fb92895efc323e-582047219.eu-north-1.elb.amazonaws.com` |
+| Canary | `http://af8266b7976b34805ad134cb90bb1c6f-604946243.eu-north-1.elb.amazonaws.com` |
+| Rolling Update | `http://ac1d25ad2c735418cac438a6086d6485-909567311.eu-north-1.elb.amazonaws.com` |
+| A/B Testing | `http://a6d3b951321154b3a9edda5cc4bc1dde-1914805219.eu-north-1.elb.amazonaws.com` |
+| Shadow | `http://ad97a92b9f1234d528588cd3c4a4e241-156886867.eu-north-1.elb.amazonaws.com` |
+
+
+## 12. API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/` | App info and API links (JSON) |
-| GET | `/health` | Health check (JSON) |
-| POST | `/api/login` | Login; JSON: username, password → username, role; 401 if invalid |
-| GET | `/api/programs` | List of program names (JSON) |
-| GET | `/api/program/<name>` | Workout, diet, color, calorie_factor, desc (JSON); 404 if not found |
-| GET | `/api/clients` | List of all clients (JSON) |
-| GET | `/api/clients/<name>` | One client by name (JSON); 404 if not found |
-| POST | `/api/clients` | Create or replace client; JSON: name (required), program (optional), age, height, weight, calories, membership_status, membership_end |
-| POST | `/api/progress` | Save progress; JSON: client_name, week, adherence |
-| GET | `/api/progress/<client_name>` | List progress entries (week, adherence) for client |
-| POST | `/api/metrics` | Save body metrics; JSON: client_name, date, weight, waist, bodyfat |
-| GET | `/api/metrics/<client_name>` | List metrics for client |
-| POST | `/api/workouts` | Save workout; JSON: client_name, date, workout_type, duration_min, notes |
-| GET | `/api/workouts/<client_name>` | List workouts for client |
+| GET | `/` | App info and API links |
+| GET | `/health` | Health check |
+| POST | `/api/login` | Login with username and password |
+| GET | `/api/programs` | List all program names |
+| GET | `/api/program/<name>` | Get program details by name |
+| GET | `/api/clients` | List all clients |
+| GET | `/api/clients/<name>` | Get client by name |
+| POST | `/api/clients` | Create or update client |
+| POST | `/api/progress` | Save progress entry |
+| GET | `/api/progress/<client_name>` | Get progress for client |
+| POST | `/api/metrics` | Save body metrics |
+| GET | `/api/metrics/<client_name>` | Get metrics for client |
+| POST | `/api/workouts` | Save workout |
+| GET | `/api/workouts/<client_name>` | Get workouts for client |
 
-Program names are returned by `/api/programs`. SQLite DB `aceest_fitness.db` is created by the Flask app. The GUI uses these endpoints only; no local DB.
+---
 
-Developed By - Amit Kumar Rout(2o24TM93566)
+## 13. Repository Layout
+
+| Path | Description |
+|------|-------------|
+| `app.py` | Flask backend API |
+| `gui.py` | Tkinter frontend |
+| `program_data.py` | Program specification data |
+| `requirements.txt` | Python dependencies |
+| `tests/test_app.py` | Pytest suite (26 tests) |
+| `Dockerfile` | Container image definition |
+| `Jenkinsfile` | Jenkins pipeline with SonarQube |
+| `.github/workflows/main.yml` | GitHub Actions CI/CD workflow |
+| `sonar-project.properties` | SonarQube configuration |
+| `k8s/blue-green-deployment.yaml` | Blue-Green deployment strategy |
+| `k8s/canary-deployment.yaml` | Canary deployment strategy |
+| `k8s/rolling-update-deployment.yaml` | Rolling Update strategy |
+| `k8s/ab-testing-deployment.yaml` | A/B Testing strategy |
+| `k8s/shadow-deployment.yaml` | Shadow deployment strategy |
+
+
+
+**Developed by:** Amit Kumar Rout (2024TM93566)  
