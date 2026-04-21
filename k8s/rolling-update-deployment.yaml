@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aceest-rolling
+  labels:
+    strategy: rolling-update
 spec:
   replicas: 3
   strategy:
@@ -19,8 +21,8 @@ spec:
     spec:
       containers:
       - name: aceest
-        image: aceest-fitness:latest
-        imagePullPolicy: Never
+        image: 2024tm93566bits/aceest_fitness_image:v1.0
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
 ---
@@ -34,4 +36,4 @@ spec:
   ports:
   - port: 80
     targetPort: 5000
-  type: NodePort
+  type: LoadBalancer

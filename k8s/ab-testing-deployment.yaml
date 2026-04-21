@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aceest-version-a
+  labels:
+    strategy: ab-testing
 spec:
   replicas: 2
   selector:
@@ -16,8 +18,8 @@ spec:
     spec:
       containers:
       - name: aceest
-        image: aceest-fitness:latest
-        imagePullPolicy: Never
+        image: 2024tm93566bits/aceest_fitness_image:v1.0
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
 ---
@@ -25,6 +27,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aceest-version-b
+  labels:
+    strategy: ab-testing
 spec:
   replicas: 2
   selector:
@@ -39,8 +43,8 @@ spec:
     spec:
       containers:
       - name: aceest
-        image: aceest-fitness:latest
-        imagePullPolicy: Never
+        image: 2024tm93566bits/aceest_fitness_image:v2.0
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
 ---
@@ -54,4 +58,4 @@ spec:
   ports:
   - port: 80
     targetPort: 5000
-  type: NodePort
+  type: LoadBalancer
